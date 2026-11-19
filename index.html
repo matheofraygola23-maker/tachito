@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tacho App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #f8fafc;
+            overflow: hidden;
+        }
+
+        @keyframes idleFloat {
+            0%, 100% { transform: translateY(0px) scale(1, 1); }
+            50% { transform: translateY(-4px) scale(1.015, 0.985); }
+        }
+
+        @keyframes bounceTap {
+            0% { transform: scale(1, 1); }
+            30% { transform: scale(1.12, 0.88) translateY(8px); }
+            60% { transform: scale(0.94, 1.08) translateY(-14px); }
+            80% { transform: scale(1.03, 0.97) translateY(2px); }
+            100% { transform: scale(1, 1) translateY(0); }
+        }
+
+        @keyframes blinkEyes {
+            0%, 92%, 100% { transform: scaleY(1); }
+            96% { transform: scaleY(0.08); }
+        }
+
+        @keyframes goldSparkle {
+            0%, 100% { opacity: 0.25; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.25); }
+        }
+
+        @keyframes walkAwayAngry {
+            0% { transform: translateX(0) rotate(0deg); opacity: 1; }
+            20% { transform: translateX(-15px) rotate(-6deg); opacity: 1; }
+            45% { transform: translateX(65px) translateY(-10px) rotate(8deg); opacity: 1; }
+            70% { transform: translateX(175px) translateY(0px) rotate(12deg); opacity: 1; }
+            100% { transform: translateX(340px) translateY(-12px) rotate(18deg); opacity: 0; }
+        }
+
+        @keyframes walkBackIn {
+            0% { transform: translateX(300px) rotate(10deg); opacity: 0; }
+            65% { transform: translateX(-12px) rotate(-4deg); opacity: 1; }
+            100% { transform: translateX(0) rotate(0deg); opacity: 1; }
+        }
+
+        .character-walk-away {
+            animation: walkAwayAngry 1.05s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            transform-origin: bottom center;
+        }
+
+        .character-walk-back {
+            animation: walkBackIn 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            transform-origin: bottom center;
+        }
+
+        .gold-sparkle-1 {
+            animation: goldSparkle 1.8s ease-in-out infinite;
+            transform-origin: center;
+        }
+        .gold-sparkle-2 {
+            animation: goldSparkle 2.2s ease-in-out 0.7s infinite;
+            transform-origin: center;
+        }
+        .gold-sparkle-3 {
+            animation: goldSparkle 2s ease-in-out 1.3s infinite;
+            transform-origin: center;
+        }
+
+        .character-idle {
+            animation: idleFloat 3s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+
+        .character-tap {
+            animation: bounceTap 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: bottom center;
+        }
+
+        .eyes-blink {
+            animation: blinkEyes 4.5s infinite;
+            transform-origin: center;
+        }
+
+        .sketch-btn {
+            transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .sketch-btn:active {
+            transform: scale(0.88);
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between items-center relative bg-[#f8fafc] text-gray-800">
+
+    <!-- ==================== PANTALLA PRINCIPAL ==================== -->
+    <main id="main-screen" class="w-full h-full max-w-md flex flex-col justify-between items-center p-5 sm:p-7 relative">
+        
+        <!-- Encabezado superior: Barra de Hambre y Botón Tienda -->
+        <header class="w-full flex justify-between items-start z-20 pt-1">
+            <div id="hunger-hud" class="flex flex-col gap-1 bg-white border-[3.5px] border-gray-800 rounded-2xl px-3 py-2 shadow-sm">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 3h6v3l2 2v11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V8l2-2V3z"/>
+                        </svg>
+                        <span class="text-xs font-bold text-gray-800 tracking-wide">Comida</span>
+                    </div>
+                    <span id="hunger-percent" class="text-xs font-bold text-gray-800">75%</span>
+                </div>
+                <div class="w-28 sm:w-32 h-3.5 bg-gray-100 border-[2.5px] border-gray-800 rounded-full overflow-hidden p-[1px]">
+                    <div id="hunger-bar-fill" class="h-full bg-[#4ade80] rounded-full transition-all duration-300" style="width: 75%;"></div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button id="btn-shop" aria-label="Abrir Tienda" class="sketch-btn p-2.5 rounded-2xl focus:outline-none">
+                    <svg width="42" height="40" viewBox="0 0 64 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 24V51C10 52.6569 11.3431 54 13 54H51C52.6569 54 54 52.6569 54 51V24" stroke="#1e293b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="#ffffff"/>
+                        <path d="M16 8H48L57 20C57 24.4183 53.4183 28 49 28C45.8 28 43.05 26.1 41.8 23.4C40.55 26.1 37.8 28 34.6 28C33.65 28 32.75 27.82 32 27.5C31.25 27.82 30.35 28 29.4 28C26.2 28 23.45 26.1 22.2 23.4C20.95 26.1 18.2 28 15 28C10.5817 28 7 24.4183 7 20L16 8Z" fill="#ffffff" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/>
+                        <line x1="21" y1="8" x2="18" y2="21" stroke="#1e293b" stroke-width="3.2" stroke-linecap="round"/>
+                        <line x1="32" y1="8" x2="32" y2="21" stroke="#1e293b" stroke-width="3.2" stroke-linecap="round"/>
+                        <line x1="43" y1="8" x2="46" y2="21" stroke="#1e293b" stroke-width="3.2" stroke-linecap="round"/>
+                        <rect x="25" y="36" width="14" height="18" rx="2" fill="#e2e8f0" stroke="#1e293b" stroke-width="3.5"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Zona Central: Personaje -->
+        <section class="flex-1 w-full flex flex-col items-center justify-center relative my-2">
+            <div id="speech-bubble" class="opacity-0 transition-all duration-300 transform -translate-y-2 mb-3 px-4 py-1.5 bg-white border-[3px] border-gray-800 rounded-2xl shadow-sm text-sm font-semibold text-gray-800 pointer-events-none text-center max-w-[85%]">
+                ¡Hola! ¿Reciclamos hoy?
+            </div>
+
+            <!-- Cartel dibujado a mano que aparece cuando el tachito se va enojado -->
+            <button id="angry-sign-btn" type="button" class="hidden sketch-btn flex-col items-center justify-center focus:outline-none z-20">
+                <div class="bg-[#fef08a] border-[4px] border-gray-800 rounded-2xl px-6 py-4 shadow-md transform -rotate-2">
+                    <p class="text-lg sm:text-xl font-bold text-gray-900 text-center leading-snug">No lo vuelvas a hacer</p>
+                </div>
+                <div class="w-4 h-14 bg-[#b45309] border-x-[4px] border-b-[4px] border-gray-800 -mt-1 rounded-b-md"></div>
+            </button>
+
+            <div id="character-container" role="button" tabindex="0" aria-label="Tacho de basura interactivo" class="character-idle cursor-pointer relative flex items-center justify-center p-2 focus:outline-none">
+                <svg id="trash-character" class="w-60 h-64 sm:w-68 sm:h-72 overflow-visible" viewBox="0 0 260 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="gold-trash-grad" x1="38" y1="36" x2="212" y2="259" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#fef08a"/>
+                            <stop offset="30%" stop-color="#facc15"/>
+                            <stop offset="65%" stop-color="#eab308"/>
+                            <stop offset="100%" stop-color="#ca8a04"/>
+                        </linearGradient>
+                    </defs>
+
+                    <ellipse cx="130" cy="264" rx="74" ry="9" fill="#cbd5e1" opacity="0.6"/>
+
+                    <g id="character-lid">
+                        <path d="M106 38V24C106 20.6863 108.686 18 112 18H148C151.314 18 154 20.6863 154 24V38" stroke="#1e293b" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path id="trash-lid-top" d="M48 56C48 44.9543 56.9543 36 68 36H192C203.046 36 212 44.9543 212 56V64H48V56Z" fill="#78c474" stroke="#1e293b" stroke-width="6.5" stroke-linejoin="round"/>
+                        <rect id="trash-lid-rim" x="38" y="62" width="184" height="17" rx="8.5" fill="#78c474" stroke="#1e293b" stroke-width="6.5" stroke-linejoin="round"/>
+                    </g>
+
+                    <!-- Pelos y accesorios de cabeza equipables -->
+                    <g id="equipped-head-layer">
+                        <!-- Pelo Negro (Goku Base) -->
+                        <g id="equipped-pelo-negro" class="hidden">
+                            <path d="M56 54L34 42L64 34L36 10L86 18L76 -18L124 8L142 -22L156 12L196 -6L180 26L218 28L188 46L210 56L172 56L160 44L144 56L130 40L114 56L98 42L82 56Z" fill="#1e293b" stroke="#0f172a" stroke-width="5.5" stroke-linejoin="round"/>
+                        </g>
+
+                        <!-- Pelo Rubio (Super Saiyajin) -->
+                        <g id="equipped-pelo-rubio" class="hidden">
+                            <path d="M54 54L36 32L66 28L52 -4L92 14L104 -26L132 8L158 -24L168 14L204 -2L188 30L222 36L186 52L166 42L148 58L130 38L112 58L94 42L74 54Z" fill="#facc15" stroke="#1e293b" stroke-width="5.5" stroke-linejoin="round"/>
+                            <path d="M96 42L104 6M130 38L132 -12M164 42L158 6" stroke="#eab308" stroke-width="3.5" stroke-linecap="round"/>
+                        </g>
+
+                        <!-- Pelo Azul (Super Saiyajin Blue) -->
+                        <g id="equipped-pelo-azul" class="hidden">
+                            <path d="M54 54L36 32L66 28L52 -4L92 14L104 -26L132 8L158 -24L168 14L204 -2L188 30L222 36L186 52L166 42L148 58L130 38L112 58L94 42L74 54Z" fill="#22d3ee" stroke="#1e293b" stroke-width="5.5" stroke-linejoin="round"/>
+                            <path d="M96 42L104 6M130 38L132 -12M164 42L158 6" stroke="#0891b2" stroke-width="3.5" stroke-linecap="round"/>
+                        </g>
+
+                        <!-- Rueda Dorada (Mahoraga) -->
+                        <g id="equipped-rueda-dorada" class="hidden">
+                            <ellipse cx="130" cy="4" rx="54" ry="15" fill="none" stroke="#1e293b" stroke-width="11"/>
+                            <ellipse cx="130" cy="4" rx="54" ry="15" fill="none" stroke="#eab308" stroke-width="6"/>
+                            <line x1="76" y1="4" x2="184" y2="4" stroke="#1e293b" stroke-width="4.5"/>
+                            <line x1="92" y1="-7" x2="168" y2="15" stroke="#1e293b" stroke-width="4.5"/>
+                            <line x1="168" y1="-7" x2="92" y2="15" stroke="#1e293b" stroke-width="4.5"/>
+                            <line x1="130" y1="-11" x2="130" y2="19" stroke="#1e293b" stroke-width="4.5"/>
+                            <circle cx="130" cy="4" r="7" fill="#facc15" stroke="#1e293b" stroke-width="3.5"/>
+                            <circle cx="68" cy="4" r="7" fill="#facc15" stroke="#1e293b" stroke-width="3.5"/>
+                            <circle cx="192" cy="4" r="7" fill="#facc15" stroke="#1e293b" stroke-width="3.5"/>
+                            <circle cx="86" cy="-10" r="6.5" fill="#facc15" stroke="#1e293b" stroke-width="3.5"/>
+                            <circle cx="174" cy="-10" r="6.5" fill="#facc15" stroke="#1e293b" stroke-width="3.5"/>
+                            <circle cx="86" cy="18" r="6.5" fill="#facc15" stroke="#1e293b" stroke-width="3.5"/>
+                            <circle cx="174" cy="18" r="6.5" fill="#facc15" stroke="#1e293b" stroke-width="3.5"/>
+                            <circle cx="130" cy="-16" r="6.5" fill="#facc15" stroke="#1e293b" stroke-width="3.5"/>
+                            <circle cx="130" cy="24" r="6.5" fill="#facc15" stroke="#1e293b" stroke-width="3.5"/>
+                        </g>
+                    </g>
+
+                    <g id="character-body">
+                        <path id="trash-body-fill" d="M54 79H206L194 242C193.1 251.8 184.9 259 175 259H85C75.1 259 66.9 251.8 66 242L54 79Z" fill="#78c474" stroke="#1e293b" stroke-width="6.5" stroke-linejoin="round"/>
+
+                        <!-- Brillos y destellos de Vida de Oro -->
+                        <g id="equipped-gold-shine" class="hidden pointer-events-none">
+                            <path d="M72 90H88L82 246H74L72 90Z" fill="#fef9c3" opacity="0.65"/>
+                            <path d="M96 90H103L99 246H94L96 90Z" fill="#fef9c3" opacity="0.4"/>
+                            <path d="M62 44C72 41 110 41 124 43" stroke="#fef9c3" stroke-width="4" stroke-linecap="round" opacity="0.75"/>
+                            <path class="gold-sparkle-1" d="M76 196L79 203L86 206L79 209L76 216L73 209L66 206L73 203Z" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" stroke-linejoin="round"/>
+                            <path class="gold-sparkle-2" d="M182 174L184.5 180L190.5 182.5L184.5 185L182 191L179.5 185L173.5 182.5L179.5 180Z" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" stroke-linejoin="round"/>
+                            <path class="gold-sparkle-3" d="M168 48L170 53L175 55L170 57L168 62L166 57L161 55L166 53Z" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" stroke-linejoin="round"/>
+                        </g>
+
+                        <g id="equipped-ropa" class="hidden">
+                            <path id="equipped-ropa-base" d="M62 180H198L194 242C193.1 251.8 184.9 259 175 259H85C75.1 259 66.9 251.8 66 242L62 180Z" fill="#ffffff" stroke="#1e293b" stroke-width="6" stroke-linejoin="round"/>
+                            <path d="M123 180H137L135 212H125L123 180Z" fill="#1e293b"/>
+                            <circle cx="130" cy="227" r="6" fill="#1e293b"/>
+                        </g>
+
+                        <g id="eyes-group" class="eyes-blink">
+                            <g id="eye-left">
+                                <circle cx="102" cy="128" r="24" fill="#ffffff" stroke="#1e293b" stroke-width="6"/>
+                                <circle id="pupil-left" cx="102" cy="128" r="6.5" fill="#1e293b"/>
+                            </g>
+                            <line x1="126" y1="128" x2="134" y2="128" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                            <g id="eye-right">
+                                <circle cx="158" cy="128" r="24" fill="#ffffff" stroke="#1e293b" stroke-width="6"/>
+                                <circle id="pupil-right" cx="158" cy="128" r="6.5" fill="#1e293b"/>
+                            </g>
+                        </g>
+
+                        <!-- Cejas enojadas -->
+                        <g id="angry-brows" class="hidden pointer-events-none">
+                            <line x1="82" y1="98" x2="120" y2="112" stroke="#1e293b" stroke-width="7" stroke-linecap="round"/>
+                            <line x1="178" y1="98" x2="140" y2="112" stroke="#1e293b" stroke-width="7" stroke-linecap="round"/>
+                        </g>
+
+                        <g id="equipped-lentes" class="hidden">
+                            <line x1="65" y1="114" x2="195" y2="114" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                            <line x1="65" y1="114" x2="73" y2="107" stroke="#1e293b" stroke-width="5" stroke-linecap="round"/>
+                            <line x1="195" y1="114" x2="187" y2="107" stroke="#1e293b" stroke-width="5" stroke-linecap="round"/>
+                            <circle cx="102" cy="128" r="23" fill="#1e293b"/>
+                            <circle cx="158" cy="128" r="23" fill="#1e293b"/>
+                            <line x1="92" y1="120" x2="102" y2="130" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
+                            <line x1="148" y1="120" x2="158" y2="130" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
+                        </g>
+
+                        <path id="character-mouth" d="M123 166Q130 166 137 166" stroke="#1e293b" stroke-width="6" stroke-linecap="round" fill="none"/>
+                    </g>
+                </svg>
+
+                <!-- Contenedor de Mascota Equipada al lado del Tachito -->
+                <div id="equipped-pet-container" class="hidden absolute -left-8 sm:-left-10 bottom-3 w-24 h-24 sm:w-28 sm:h-28 pointer-events-none flex items-end justify-center drop-shadow-sm"></div>
+            </div>
+        </section>
+
+        <!-- Barra Inferior -->
+        <footer class="w-full flex justify-between items-end z-20 pb-1">
+            <button id="btn-camera" aria-label="Abrir Cámara" class="sketch-btn p-2.5 rounded-2xl focus:outline-none">
+                <svg width="52" height="44" viewBox="0 0 68 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 18C10 15.7909 11.7909 14 14 14H19L23 8H37L41 14H46C48.2091 14 50 15.7909 50 18V42C50 44.2091 48.2091 46 46 46H14C11.7909 46 10 44.2091 10 42V18Z" fill="#ffffff" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/>
+                    <circle cx="30" cy="30" r="9.5" fill="#e2e8f0" stroke="#1e293b" stroke-width="3.8"/>
+                    <circle cx="57" cy="12" r="4.5" fill="#ffffff" stroke="#1e293b" stroke-width="3.5"/>
+                </svg>
+            </button>
+
+            <button id="btn-bottle" aria-label="Sacar burbuja de comida" class="sketch-btn p-2.5 rounded-2xl focus:outline-none">
+                <svg width="46" height="46" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g transform="rotate(-38 30 30)">
+                        <rect x="24" y="7" width="12" height="6" rx="1.5" fill="#e2e8f0" stroke="#1e293b" stroke-width="3.8" stroke-linejoin="round"/>
+                        <path d="M25 13H35L39 20V44C39 46.2 37.5 48 35.5 48C34.2 48 33.2 47 32.5 46C31.8 47 30.8 48 30 48C29.2 48 28.2 47 27.5 46C26.8 47 25.8 48 24.5 48C22.5 48 21 46.2 21 44V20L25 13Z" fill="#ffffff" stroke="#1e293b" stroke-width="3.8" stroke-linejoin="round"/>
+                    </g>
+                </svg>
+            </button>
+        </footer>
+
+        <div id="food-bubbles-layer" class="absolute inset-0 pointer-events-none z-30 overflow-hidden"></div>
+    </main>
+
+    <!-- ==================== CÁMARA (2 FOTOS) ==================== -->
+    <div id="camera-view" class="hidden fixed inset-0 z-50 bg-[#c2e7ff] flex justify-center items-center">
+        <div class="w-full h-full max-w-md flex flex-col justify-between p-4 sm:p-5 relative">
+            <header class="w-full bg-white border-[3.5px] border-gray-800 rounded-2xl px-3 py-2.5 flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-2">
+                    <span id="camera-step-badge" class="bg-[#78c474] border-[2.5px] border-gray-800 text-gray-900 font-bold text-xs px-2.5 py-1 rounded-xl">Foto 1 de 2</span>
+                    <span class="text-xs sm:text-sm font-bold text-gray-800">+30 monedas</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-switch-camera" aria-label="Cambiar cámara" class="sketch-btn px-2.5 py-1.5 bg-gray-100 border-[2.5px] border-gray-800 rounded-xl text-xs font-bold text-gray-800">🔄</button>
+                    <button id="btn-close-camera" aria-label="Cerrar cámara" class="sketch-btn p-1 rounded-lg">
+                        <svg width="26" height="26" viewBox="0 0 32 32" fill="none"><path d="M6 6L26 26M26 6L6 26" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <div class="w-full bg-white border-[3.5px] border-gray-800 rounded-2xl p-3 my-2 text-center shadow-sm">
+                <p id="camera-instruction-title" class="text-sm sm:text-base font-bold text-gray-900">Paso 1: Sácale foto a un objeto tirado</p>
+                <p id="camera-instruction-desc" class="text-xs text-gray-600 mt-0.5">Enfoca una basura u objeto tirado en el suelo o fuera del tacho.</p>
+            </div>
+
+            <div class="relative w-full flex-1 min-h-[200px] bg-gray-900 border-[3.5px] border-gray-800 rounded-3xl overflow-hidden flex items-center justify-center shadow-md">
+                <video id="camera-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+
+                <div id="camera-fallback" class="hidden flex-col items-center justify-center p-5 text-center text-white gap-3">
+                    <p class="text-sm font-bold text-amber-300">📷 Permiso de cámara necesario</p>
+                    <p id="camera-error-detail" class="text-xs text-gray-200">Activa el permiso de la cámara de tu celular para poder sacar fotos en vivo.</p>
+                    <div class="flex flex-wrap items-center justify-center gap-2 mt-1">
+                        <button id="btn-retry-camera" type="button" class="sketch-btn bg-[#78c474] text-gray-900 font-bold text-xs sm:text-sm px-5 py-2.5 rounded-2xl border-[3px] border-gray-800">Activar Cámara del Celular</button>
+                    </div>
+                </div>
+
+                <div id="camera-verifying-overlay" class="hidden absolute inset-0 bg-gray-900/85 flex-col items-center justify-center p-5 text-center text-white z-20">
+                    <div class="w-10 h-10 border-4 border-white border-t-[#78c474] rounded-full animate-spin mb-3"></div>
+                    <p id="camera-verifying-text" class="text-sm font-bold">Analizando imagen...</p>
+                </div>
+            </div>
+
+            <div class="w-full flex items-center justify-between gap-2 mt-3">
+                <div class="w-14 h-14 sm:w-16 sm:h-16 bg-white border-[3px] border-gray-800 rounded-2xl overflow-hidden flex items-center justify-center">
+                    <span id="thumb-1-placeholder" class="text-[11px] font-bold text-gray-400 text-center">1. Tirado</span>
+                    <img id="thumb-1-img" src="" alt="Foto 1" class="hidden w-full h-full object-cover">
+                </div>
+
+                <div class="flex flex-col items-center gap-1">
+                    <button id="btn-capture-photo" aria-label="Sacar foto" class="sketch-btn w-16 h-16 sm:w-18 sm:h-18 bg-white border-[4px] border-gray-800 rounded-full flex items-center justify-center shadow-md">
+                        <div class="w-12 h-12 bg-[#78c474] border-[3px] border-gray-800 rounded-full"></div>
+                    </button>
+                    <button id="btn-reset-photos" class="hidden text-[11px] font-bold text-gray-800 underline">Reiniciar fotos</button>
+                </div>
+
+                <div class="w-14 h-14 sm:w-16 sm:h-16 bg-white border-[3px] border-gray-800 rounded-2xl overflow-hidden flex items-center justify-center">
+                    <span id="thumb-2-placeholder" class="text-[11px] font-bold text-gray-400 text-center">2. En tacho</span>
+                    <img id="thumb-2-img" src="" alt="Foto 2" class="hidden w-full h-full object-cover">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TIENDA ==================== -->
+    <div id="shop-view" class="hidden fixed inset-0 z-50 bg-[#c2e7ff] flex justify-center">
+        <div class="w-full h-full max-w-md flex flex-col">
+            <header class="w-full bg-white border-b-[3.5px] border-gray-800 px-4 py-3 flex items-center justify-between shrink-0">
+                <div class="flex items-center">
+                    <svg class="eyes-blink" width="68" height="32" viewBox="0 0 82 38" fill="none">
+                        <circle cx="19" cy="19" r="15" fill="#ffffff" stroke="#1e293b" stroke-width="4"/>
+                        <circle id="shop-pupil-left" cx="19" cy="19" r="4.5" fill="#1e293b"/>
+                        <line x1="34" y1="19" x2="48" y2="19" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+                        <circle cx="63" cy="19" r="15" fill="#ffffff" stroke="#1e293b" stroke-width="4"/>
+                        <circle id="shop-pupil-right" cx="63" cy="19" r="4.5" fill="#1e293b"/>
+                    </svg>
+                </div>
+
+                <div class="flex items-center gap-2.5">
+                    <div class="flex items-center gap-1.5 bg-[#fef08a] border-[3px] border-gray-800 rounded-full px-3 py-1 shadow-sm">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="9" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/>
+                            <text x="12" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e293b">$</text>
+                        </svg>
+                        <span id="coin-count" class="text-sm sm:text-base font-bold text-gray-800">100</span>
+                    </div>
+
+                    <button id="btn-close-shop" aria-label="Cerrar Tienda" class="sketch-btn p-1 rounded-lg focus:outline-none">
+                        <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M6 6L26 26M26 6L6 26" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <div class="flex-1 w-full flex overflow-hidden relative px-3 py-3 gap-2">
+                <div id="shop-scroll-area" class="flex-1 h-full overflow-y-auto no-scrollbar pr-1">
+                    <div id="shop-items-grid" class="grid grid-cols-2 gap-2.5 pb-4"></div>
+                </div>
+                <div class="w-6 h-full flex items-center justify-center shrink-0">
+                    <div id="shop-scrollbar-track" class="w-4 h-[90%] bg-white border-[3px] border-gray-800 rounded-full relative cursor-pointer touch-none">
+                        <div id="shop-scrollbar-thumb" class="w-full h-14 bg-[#93c5fd] border-b-[3px] border-gray-800 rounded-full absolute top-0 left-0 cursor-grab"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== LÓGICA ==================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const characterContainer = document.getElementById('character-container');
+            const trashCharacter = document.getElementById('trash-character');
+            const mouth = document.getElementById('character-mouth');
+            const pupilLeft = document.getElementById('pupil-left');
+            const pupilRight = document.getElementById('pupil-right');
+            const speechBubble = document.getElementById('speech-bubble');
+            const equippedRopa = document.getElementById('equipped-ropa');
+            const equippedRopaBase = document.getElementById('equipped-ropa-base');
+            const equippedLentes = document.getElementById('equipped-lentes');
+            const equippedPeloNegro = document.getElementById('equipped-pelo-negro');
+            const equippedPeloRubio = document.getElementById('equipped-pelo-rubio');
+            const equippedPeloAzul = document.getElementById('equipped-pelo-azul');
+            const equippedRuedaDorada = document.getElementById('equipped-rueda-dorada');
+            const equippedPetContainer = document.getElementById('equipped-pet-container');
+            const trashLidTop = document.getElementById('trash-lid-top');
+            const trashLidRim = document.getElementById('trash-lid-rim');
+            const trashBodyFill = document.getElementById('trash-body-fill');
+            const equippedGoldShine = document.getElementById('equipped-gold-shine');
+            const angryBrows = document.getElementById('angry-brows');
+            const angrySignBtn = document.getElementById('angry-sign-btn');
+            const foodBubblesLayer = document.getElementById('food-bubbles-layer');
+
+            const hungerBarFill = document.getElementById('hunger-bar-fill');
+            const hungerPercentText = document.getElementById('hunger-percent');
+
+            const btnShop = document.getElementById('btn-shop');
+            const btnCloseShop = document.getElementById('btn-close-shop');
+            const shopView = document.getElementById('shop-view');
+            const btnCamera = document.getElementById('btn-camera');
+            const btnBottle = document.getElementById('btn-bottle');
+
+            const cameraView = document.getElementById('camera-view');
+            const btnCloseCamera = document.getElementById('btn-close-camera');
+            const btnSwitchCamera = document.getElementById('btn-switch-camera');
+            const cameraVideo = document.getElementById('camera-video');
+            const cameraCanvas = document.getElementById('camera-canvas');
+            const cameraFallback = document.getElementById('camera-fallback');
+            const cameraErrorDetail = document.getElementById('camera-error-detail');
+            const btnRetryCamera = document.getElementById('btn-retry-camera');
+            const cameraStepBadge = document.getElementById('camera-step-badge');
+            const cameraInstructionTitle = document.getElementById('camera-instruction-title');
+            const cameraVerifyingOverlay = document.getElementById('camera-verifying-overlay');
+            const cameraVerifyingText = document.getElementById('camera-verifying-text');
+            const btnCapturePhoto = document.getElementById('btn-capture-photo');
+            const btnResetPhotos = document.getElementById('btn-reset-photos');
+            const thumb1Img = document.getElementById('thumb-1-img');
+            const thumb1Placeholder = document.getElementById('thumb-1-placeholder');
+            const thumb2Img = document.getElementById('thumb-2-img');
+            const thumb2Placeholder = document.getElementById('thumb-2-placeholder');
+
+            const coinCountEl = document.getElementById('coin-count');
+            const shopItemsGrid = document.getElementById('shop-items-grid');
+            const shopScrollArea = document.getElementById('shop-scroll-area');
+            const shopScrollbarTrack = document.getElementById('shop-scrollbar-track');
+            const shopScrollbarThumb = document.getElementById('shop-scrollbar-thumb');
+            const shopPupilLeft = document.getElementById('shop-pupil-left');
+            const shopPupilRight = document.getElementById('shop-pupil-right');
+
+            const state = {
+                coins: 100,
+                hunger: 75,
+                ownedItems: [],
+                equippedRopaColor: null,
+                equippedLentes: false,
+                equippedHead: null,
+                equippedPet: null,
+                equippedPaint: null,
+                inventory: { botella: 0, papel: 0, salchipapa: 0, cuy: 0, cafe: 0, veneno: 0 }
+            };
+
+            let isCharacterGone = false;
+            let db = null;
+            let currentUser = null;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+            let bubbleTimeout = null;
+            function showBubble(text) {
+                speechBubble.textContent = text;
+                speechBubble.classList.remove('opacity-0', '-translate-y-2');
+                speechBubble.classList.add('opacity-100', 'translate-y-0');
+                clearTimeout(bubbleTimeout);
+                bubbleTimeout = setTimeout(() => {
+                    speechBubble.classList.remove('opacity-100', 'translate-y-0');
+                    speechBubble.classList.add('opacity-0', '-translate-y-2');
+                }, 2600);
+            }
+
+            function triggerCharacterReaction(message) {
+                if (isCharacterGone) return;
+                characterContainer.classList.remove('character-idle', 'character-tap');
+                void characterContainer.offsetWidth;
+                characterContainer.classList.add('character-tap');
+                mouth.setAttribute('d', 'M116 164Q130 178 144 164');
+                if (message) showBubble(message);
+                setTimeout(() => {
+                    if (!isCharacterGone) {
+                        mouth.setAttribute('d', 'M123 166Q130 166 137 166');
+                        characterContainer.classList.remove('character-tap');
+                        characterContainer.classList.add('character-idle');
+                    }
+                }, 600);
+            }
+
+            characterContainer.addEventListener('click', () => {
+                triggerCharacterReaction('¡Hola! ¿Reciclamos hoy?');
+            });
+
+            function saveToDeviceMemory() {
+                try {
+                    localStorage.setItem('tacho_app_save_v1', JSON.stringify(state));
+                } catch (e) {}
+            }
+
+            function loadFromDeviceMemory() {
+                try {
+                    const saved = localStorage.getItem('tacho_app_save_v1');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        Object.assign(state, parsed);
+                        state.inventory = Object.assign(
+                            { botella: 0, papel: 0, salchipapa: 0, cuy: 0, cafe: 0, veneno: 0 },
+                            parsed.inventory || {}
+                        );
+                    }
+                } catch (e) {}
+            }
+
+            async function saveGameProgress() {
+                saveToDeviceMemory();
+                if (!db || !currentUser) return;
+                try {
+                    const ref = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gameData', 'progress');
+                    await setDoc(ref, state, { merge: true });
+                } catch (e) {}
+            }
+
+            async function initCloudStorage() {
+                loadFromDeviceMemory();
+                updateUI();
+                try {
+                    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                        const firebaseConfig = JSON.parse(__firebase_config);
+                        const app = initializeApp(firebaseConfig);
+                        const auth = getAuth(app);
+                        db = getFirestore(app);
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                            currentUser = cred.user;
+                        } else {
+                            const cred = await signInAnonymously(auth);
+                            currentUser = cred.user;
+                        }
+                        if (currentUser) {
+                            const ref = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gameData', 'progress');
+                            const snap = await getDoc(ref);
+                            if (snap.exists()) {
+                                const cloudData = snap.data();
+                                Object.assign(state, cloudData);
+                                state.inventory = Object.assign(
+                                    { botella: 0, papel: 0, salchipapa: 0, cuy: 0, cafe: 0, veneno: 0 },
+                                    cloudData.inventory || {}
+                                );
+                                updateUI();
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            // Catálogo completo de la tienda
+            const shopItems = [
+                // Comidas
+                {
+                    id: 'botella',
+                    type: 'food',
+                    name: 'Botella',
+                    price: 15,
+                    hungerGain: 25,
+                    svg: `<svg width="46" height="46" viewBox="0 0 60 60" fill="none"><rect x="24" y="7" width="12" height="6" rx="1.5" fill="#93c5fd" stroke="#1e293b" stroke-width="3.5"/><path d="M25 13H35L39 20V46C39 48.2 37.2 50 35 50H25C22.8 50 21 48.2 21 46V20L25 13Z" fill="#e0f2fe" stroke="#1e293b" stroke-width="3.5"/></svg>`
+                },
+                {
+                    id: 'papel',
+                    type: 'food',
+                    name: 'Bola de Papel',
+                    price: 10,
+                    hungerGain: 15,
+                    svg: `<svg width="46" height="46" viewBox="0 0 60 60" fill="none"><path d="M20 18L30 12L42 18L46 30L39 44L24 46L14 35L20 18Z" fill="#f8fafc" stroke="#1e293b" stroke-width="3.5" stroke-linejoin="round"/><path d="M22 24L32 28L38 22M26 36L35 34" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/></svg>`
+                },
+                {
+                    id: 'salchipapa',
+                    type: 'food',
+                    name: 'Salchipapa',
+                    price: 40,
+                    hungerGain: 45,
+                    svg: `<svg width="48" height="48" viewBox="0 0 64 64" fill="none"><path d="M12 34L20 50H44L52 34H12Z" fill="#ffffff" stroke="#1e293b" stroke-width="3.5" stroke-linejoin="round"/><rect x="18" y="20" width="6" height="16" rx="2" transform="rotate(-15 18 20)" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/><rect x="29" y="16" width="6" height="18" rx="2" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/><rect x="40" y="19" width="6" height="16" rx="2" transform="rotate(14 40 19)" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/><ellipse cx="24" cy="31" rx="5" ry="3.5" fill="#f87171" stroke="#1e293b" stroke-width="2.5"/><ellipse cx="38" cy="30" rx="5.5" ry="4" fill="#ffffff" stroke="#1e293b" stroke-width="2.5"/><circle cx="38" cy="30" r="2.2" fill="#f59e0b"/></svg>`
+                },
+                {
+                    id: 'cuy',
+                    type: 'food',
+                    name: 'Cuy Chactado',
+                    price: 65,
+                    hungerGain: 65,
+                    svg: `<svg width="48" height="48" viewBox="0 0 64 64" fill="none"><ellipse cx="32" cy="44" rx="22" ry="9" fill="#ffffff" stroke="#1e293b" stroke-width="3.5"/><ellipse cx="32" cy="34" rx="15" ry="9" fill="#b45309" stroke="#1e293b" stroke-width="3.5"/><circle cx="20" cy="32" r="5" fill="#b45309" stroke="#1e293b" stroke-width="3"/><circle cx="18" cy="31" r="1.5" fill="#1e293b"/><circle cx="43" cy="41" r="4" fill="#fde047" stroke="#1e293b" stroke-width="2.5"/><circle cx="24" cy="42" r="3.5" fill="#fef08a" stroke="#1e293b" stroke-width="2.5"/></svg>`
+                },
+                {
+                    id: 'cafe',
+                    type: 'food',
+                    name: 'Café Latte',
+                    price: 30,
+                    hungerGain: 30,
+                    svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><ellipse cx="32" cy="48" rx="18" ry="5" fill="#e2e8f0" stroke="#1e293b" stroke-width="3.2"/><path d="M18 26H44V37C44 43 39 47 31 47C23 47 18 43 18 37V26Z" fill="#ffffff" stroke="#1e293b" stroke-width="3.5"/><path d="M44 29H48C50.5 29 52 31 52 33.5C52 36 50.5 38 48 38H44" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="31" cy="26" rx="13" ry="4" fill="#a16207" stroke="#1e293b" stroke-width="3"/></svg>`
+                },
+                {
+                    id: 'veneno',
+                    type: 'food',
+                    name: 'Veneno Matador',
+                    price: 666,
+                    hungerGain: 0,
+                    svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><rect x="26" y="10" width="12" height="7" rx="2" fill="#a855f7" stroke="#1e293b" stroke-width="3.5"/><path d="M22 22H42L46 48C46 51 43.5 54 40 54H24C20.5 54 18 51 18 48L22 22Z" fill="#9333ea" stroke="#1e293b" stroke-width="3.5"/><circle cx="32" cy="36" r="6" fill="#ffffff" stroke="#1e293b" stroke-width="2.5"/><circle cx="30" cy="35" r="1.3" fill="#1e293b"/><circle cx="34" cy="35" r="1.3" fill="#1e293b"/><path d="M28 45L36 45" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/></svg>`
+                },
+                // Pintura Vida de Oro
+                {
+                    id: 'vida_oro',
+                    type: 'paint',
+                    name: 'Vida de Oro',
+                    price: 9000,
+                    svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><path d="M18 22H46L43 50H21L18 22Z" fill="#facc15" stroke="#1e293b" stroke-width="3.5" stroke-linejoin="round"/><rect x="15" y="16" width="34" height="6" rx="3" fill="#fef08a" stroke="#1e293b" stroke-width="3.5"/><path d="M48 12L50 17L55 19L50 21L48 26L46 21L41 19L46 17Z" fill="#fef08a" stroke="#1e293b" stroke-width="2"/></svg>`
+                },
+                // Pelos y Rueda
+                {
+                    id: 'pelo-negro',
+                    type: 'head',
+                    name: 'Pelo Negro',
+                    price: 250,
+                    svg: `<svg width="48" height="44" viewBox="0 0 120 90" fill="none"><path d="M20 72L6 58L26 50L10 26L42 34L36 6L64 26L76 4L86 28L110 14L98 40L116 44L96 62L74 68L46 68Z" fill="#1e293b" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/></svg>`
+                },
+                {
+                    id: 'pelo-rubio',
+                    type: 'head',
+                    name: 'Pelo Rubio',
+                    price: 450,
+                    svg: `<svg width="48" height="44" viewBox="0 0 120 90" fill="none"><path d="M20 72L8 48L28 44L18 16L46 30L56 4L72 28L90 6L96 32L114 22L104 48L116 56L92 68L44 68Z" fill="#facc15" stroke="#1e293b" stroke-width="5" stroke-linejoin="round"/></svg>`
+                },
+                {
+                    id: 'pelo-azul',
+                    type: 'head',
+                    name: 'Pelo Azul',
+                    price: 650,
+                    svg: `<svg width="48" height="44" viewBox="0 0 120 90" fill="none"><path d="M20 72L8 48L28 44L18 16L46 30L56 4L72 28L90 6L96 32L114 22L104 48L116 56L92 68L44 68Z" fill="#22d3ee" stroke="#1e293b" stroke-width="5" stroke-linejoin="round"/></svg>`
+                },
+                {
+                    id: 'rueda-dorada',
+                    type: 'head',
+                    name: 'Rueda Divina',
+                    price: 850,
+                    svg: `<svg width="48" height="44" viewBox="0 0 120 90" fill="none"><circle cx="60" cy="45" r="26" fill="none" stroke="#eab308" stroke-width="7"/><circle cx="60" cy="45" r="26" fill="none" stroke="#1e293b" stroke-width="2.5"/><line x1="34" y1="45" x2="86" y2="45" stroke="#1e293b" stroke-width="4"/><line x1="60" y1="19" x2="60" y2="71" stroke="#1e293b" stroke-width="4"/><circle cx="60" cy="14" r="5" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/><circle cx="60" cy="76" r="5" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/><circle cx="29" cy="45" r="5" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/><circle cx="91" cy="45" r="5" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/></svg>`
+                },
+                // Ropa y Lentes
+                {
+                    id: 'lentes',
+                    type: 'lentes',
+                    name: 'Lentes Cool',
+                    price: 120,
+                    svg: `<svg width="48" height="36" viewBox="0 0 100 50" fill="none"><line x1="8" y1="16" x2="92" y2="16" stroke="#1e293b" stroke-width="5"/><circle cx="30" cy="26" r="15" fill="#1e293b"/><circle cx="70" cy="26" r="15" fill="#1e293b"/></svg>`
+                },
+                {
+                    id: 'ropa-blanca',
+                    type: 'ropa',
+                    name: 'Traje Blanco',
+                    color: '#ffffff',
+                    price: 150,
+                    svg: `<svg width="46" height="42" viewBox="0 0 80 70" fill="none"><path d="M16 14H64L60 56H20L16 14Z" fill="#ffffff" stroke="#1e293b" stroke-width="4.5"/><path d="M36 14H44L42 36H38L36 14Z" fill="#1e293b"/></svg>`
+                },
+                {
+                    id: 'ropa-roja',
+                    type: 'ropa',
+                    name: 'Traje Rojo',
+                    color: '#f87171',
+                    price: 200,
+                    svg: `<svg width="46" height="42" viewBox="0 0 80 70" fill="none"><path d="M16 14H64L60 56H20L16 14Z" fill="#f87171" stroke="#1e293b" stroke-width="4.5"/><path d="M36 14H44L42 36H38L36 14Z" fill="#1e293b"/></svg>`
+                },
+                // Mascotas
+                {
+                    id: 'pet-monstruo',
+                    type: 'pet',
+                    name: 'Monstruito',
+                    price: 1000,
+                    svg: `<svg width="52" height="52" viewBox="0 0 100 100" fill="none"><path d="M28 28L22 14L36 22M72 28L78 14L64 22" fill="#94a3b8" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/><path d="M26 42L14 36L24 54V86H38V76H62V86H76V54L86 36L74 42C72 24 62 18 50 18C38 18 28 24 26 42Z" fill="#a16207" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/><circle cx="39" cy="32" r="4" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/><circle cx="61" cy="32" r="4" fill="#facc15" stroke="#1e293b" stroke-width="2.5"/><ellipse cx="50" cy="52" rx="14" ry="11" fill="#4c1d95" stroke="#1e293b" stroke-width="3.5"/><path d="M40 45L44 49L48 45L52 49L56 45L60 49" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/></svg>`
+                },
+                {
+                    id: 'pet-pou',
+                    type: 'pet',
+                    name: 'Pou',
+                    price: 1000,
+                    svg: `<svg width="52" height="52" viewBox="0 0 100 100" fill="none"><path d="M50 16C30 16 14 54 14 72C14 84 28 88 50 88C72 88 86 84 86 72C86 54 70 16 50 16Z" fill="#c28e54" stroke="#1e293b" stroke-width="4.5"/><circle cx="41" cy="44" r="9" fill="#ffffff" stroke="#1e293b" stroke-width="3.5"/><circle cx="41" cy="44" r="3.5" fill="#1e293b"/><circle cx="59" cy="44" r="9" fill="#ffffff" stroke="#1e293b" stroke-width="3.5"/><circle cx="59" cy="44" r="3.5" fill="#1e293b"/><path d="M34 58C32 64 36 68 42 66" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round"/></svg>`
+                },
+                {
+                    id: 'pet-paloma',
+                    type: 'pet',
+                    name: 'Paloma Chullo',
+                    price: 1000,
+                    svg: `<svg width="52" height="52" viewBox="0 0 100 100" fill="none"><path d="M36 46C32 58 28 70 42 74H64C72 74 74 62 66 52L58 38H44L36 46Z" fill="#64748b" stroke="#1e293b" stroke-width="4"/><path d="M40 28C40 18 62 18 62 28V36H40V28Z" fill="#ef4444" stroke="#1e293b" stroke-width="3.5"/><path d="M40 32L35 50M62 32L67 50" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/><polygon points="62,32 72,35 62,38" fill="#cbd5e1" stroke="#1e293b" stroke-width="2.5"/><circle cx="56" cy="31" r="2.5" fill="#1e293b"/><ellipse cx="42" cy="82" rx="10" ry="6" fill="#fda4af" stroke="#1e293b" stroke-width="3.5"/><ellipse cx="62" cy="82" rx="10" ry="6" fill="#fda4af" stroke="#1e293b" stroke-width="3.5"/></svg>`
+                },
+                {
+                    id: 'pet-pera',
+                    type: 'pet',
+                    name: 'Pera Kawaii',
+                    price: 1000,
+                    svg: `<svg width="52" height="52" viewBox="0 0 100 100" fill="none"><path d="M50 22V12" stroke="#78350f" stroke-width="4.5" stroke-linecap="round"/><path d="M50 22C38 22 34 38 28 50C20 66 26 86 50 86C74 86 80 66 72 50C66 38 62 22 50 22Z" fill="#d9f99d" stroke="#1e293b" stroke-width="4"/><ellipse cx="50" cy="64" rx="18" ry="15" fill="#ffe4e6"/><circle cx="42" cy="62" r="4" fill="#4c0519"/><circle cx="58" cy="62" r="4" fill="#4c0519"/><path d="M46 70Q50 74 54 70" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/></svg>`
+                },
+                {
+                    id: 'pet-grogu',
+                    type: 'pet',
+                    name: 'Grogu',
+                    price: 1000,
+                    svg: `<svg width="52" height="52" viewBox="0 0 100 100" fill="none"><path d="M32 34L8 28L28 44M68 34L92 28L72 44" fill="#86efac" stroke="#1e293b" stroke-width="3.5" stroke-linejoin="round"/><ellipse cx="50" cy="36" rx="20" ry="14" fill="#86efac" stroke="#1e293b" stroke-width="3.5"/><circle cx="42" cy="36" r="4.5" fill="#1e293b"/><circle cx="58" cy="36" r="4.5" fill="#1e293b"/><path d="M30 48H70L76 86H24L30 48Z" fill="#d6d3d1" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/></svg>`
+                },
+                {
+                    id: 'pet-doge',
+                    type: 'pet',
+                    name: 'Doge',
+                    price: 1111,
+                    svg: `<svg width="52" height="52" viewBox="0 0 100 100" fill="none"><path d="M28 32L24 14L40 24M72 32L76 14L60 24" fill="#f59e0b" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/><circle cx="50" cy="54" r="30" fill="#fbbf24" stroke="#1e293b" stroke-width="4"/><ellipse cx="50" cy="62" rx="18" ry="14" fill="#fef3c7"/><circle cx="40" cy="46" r="3.5" fill="#1e293b"/><circle cx="60" cy="46" r="3.5" fill="#1e293b"/><ellipse cx="50" cy="56" rx="4.5" ry="3.5" fill="#1e293b"/><path d="M44 64Q50 68 56 64" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/></svg>`
+                }
+            ];
+
+            function updateUI() {
+                // Inmortalidad: nunca baja a 0 ni muere
+                if (state.hunger < 20) state.hunger = 20;
+                if (state.hunger > 100) state.hunger = 100;
+
+                coinCountEl.textContent = state.coins;
+                hungerPercentText.textContent = `${Math.round(state.hunger)}%`;
+                hungerBarFill.style.width = `${state.hunger}%`;
+
+                // Pintura Vida de Oro
+                if (state.equippedPaint === 'vida_oro') {
+                    trashLidTop.setAttribute('fill', 'url(#gold-trash-grad)');
+                    trashLidRim.setAttribute('fill', 'url(#gold-trash-grad)');
+                    trashBodyFill.setAttribute('fill', 'url(#gold-trash-grad)');
+                    equippedGoldShine.classList.remove('hidden');
+                } else {
+                    trashLidTop.setAttribute('fill', '#78c474');
+                    trashLidRim.setAttribute('fill', '#78c474');
+                    trashBodyFill.setAttribute('fill', '#78c474');
+                    equippedGoldShine.classList.add('hidden');
+                }
+
+                // Ropa
+                if (state.equippedRopaColor) {
+                    equippedRopa.classList.remove('hidden');
+                    equippedRopaBase.setAttribute('fill', state.equippedRopaColor);
+                } else {
+                    equippedRopa.classList.add('hidden');
+                }
+
+                // Lentes
+                if (state.equippedLentes) {
+                    equippedLentes.classList.remove('hidden');
+                } else {
+                    equippedLentes.classList.add('hidden');
+                }
+
+                // Pelos / Rueda
+                equippedPeloNegro.classList.toggle('hidden', state.equippedHead !== 'pelo-negro');
+                equippedPeloRubio.classList.toggle('hidden', state.equippedHead !== 'pelo-rubio');
+                equippedPeloAzul.classList.toggle('hidden', state.equippedHead !== 'pelo-azul');
+                equippedRuedaDorada.classList.toggle('hidden', state.equippedHead !== 'rueda-dorada');
+
+                // Mascota
+                if (state.equippedPet) {
+                    const petItem = shopItems.find(i => i.id === state.equippedPet);
+                    if (petItem) {
+                        equippedPetContainer.innerHTML = petItem.svg;
+                        equippedPetContainer.classList.remove('hidden');
+                    }
+                } else {
+                    equippedPetContainer.classList.add('hidden');
+                    equippedPetContainer.innerHTML = '';
+                }
+
+                renderShop();
+            }
+
+            function renderShop() {
+                shopItemsGrid.innerHTML = '';
+                shopItems.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white border-[3px] border-gray-800 rounded-2xl p-2.5 flex flex-col items-center justify-between gap-1.5 shadow-sm';
+
+                    let actionLabel = `$${item.price}`;
+                    let btnColor = 'bg-[#fef08a]';
+
+                    if (item.type === 'food') {
+                        const qty = state.inventory[item.id] || 0;
+                        actionLabel = qty > 0 ? `$${item.price} (${qty})` : `$${item.price}`;
+                    } else {
+                        const owned = state.ownedItems.includes(item.id);
+                        const isEquipped =
+                            (item.type === 'head' && state.equippedHead === item.id) ||
+                            (item.type === 'pet' && state.equippedPet === item.id) ||
+                            (item.type === 'paint' && state.equippedPaint === item.id) ||
+                            (item.type === 'lentes' && state.equippedLentes) ||
+                            (item.type === 'ropa' && state.equippedRopaColor === item.color);
+
+                        if (isEquipped) {
+                            actionLabel = 'Equipado';
+                            btnColor = 'bg-[#86efac]';
+                        } else if (owned) {
+                            actionLabel = 'Equipar';
+                            btnColor = 'bg-[#bae6fd]';
+                        }
+                    }
+
+                    card.innerHTML = `
+                        <div class="h-14 flex items-center justify-center">${item.svg}</div>
+                        <span class="text-xs font-bold text-gray-800 text-center leading-tight">${item.name}</span>
+                        <button type="button" class="sketch-btn w-full py-1.5 px-2 ${btnColor} border-[2.5px] border-gray-800 rounded-xl text-xs font-bold text-gray-900">
+                            ${actionLabel}
+                        </button>
+                    `;
+
+                    card.querySelector('button').addEventListener('click', () => handleShopAction(item));
+                    shopItemsGrid.appendChild(card);
+                });
+            }
+
+            function handleShopAction(item) {
+                if (item.type === 'food') {
+                    if (state.coins >= item.price) {
+                        state.coins -= item.price;
+                        state.inventory[item.id] = (state.inventory[item.id] || 0) + 1;
+                        saveGameProgress();
+                        updateUI();
+                    }
+                    return;
+                }
+
+                const owned = state.ownedItems.includes(item.id);
+                if (!owned) {
+                    if (state.coins >= item.price) {
+                        state.coins -= item.price;
+                        state.ownedItems.push(item.id);
+                    } else {
+                        return;
+                    }
+                }
+
+                if (item.type === 'head') {
+                    state.equippedHead = state.equippedHead === item.id ? null : item.id;
+                } else if (item.type === 'pet') {
+                    state.equippedPet = state.equippedPet === item.id ? null : item.id;
+                } else if (item.type === 'paint') {
+                    state.equippedPaint = state.equippedPaint === item.id ? null : item.id;
+                } else if (item.type === 'lentes') {
+                    state.equippedLentes = !state.equippedLentes;
+                } else if (item.type === 'ropa') {
+                    state.equippedRopaColor = state.equippedRopaColor === item.color ? null : item.color;
+                }
+
+                saveGameProgress();
+                updateUI();
+            }
+
+            // Burbujas de comida arrastrables
+            btnBottle.addEventListener('click', () => {
+                if (isCharacterGone) return;
+                const availableFood = shopItems.filter(i => i.type === 'food' && (state.inventory[i.id] || 0) > 0);
+                if (availableFood.length === 0) {
+                    showBubble('¡Compra comida en la tienda!');
+                    return;
+                }
+                const chosen = availableFood[0];
+                state.inventory[chosen.id]--;
+                saveGameProgress();
+                updateUI();
+                spawnFoodBubble(chosen);
+            });
+
+            function spawnFoodBubble(foodItem) {
+                const bubble = document.createElement('div');
+                bubble.className = 'pointer-events-auto cursor-grab active:cursor-grabbing w-16 h-16 bg-white/95 border-[3.5px] border-gray-800 rounded-full flex items-center justify-center shadow-md absolute';
+                bubble.style.left = `${30 + Math.random() * 45}%`;
+                bubble.style.top = '66%';
+                bubble.innerHTML = foodItem.svg;
+                foodBubblesLayer.appendChild(bubble);
+
+                let dragging = false;
+                let offsetX = 0;
+                let offsetY = 0;
+
+                const onDown = (clientX, clientY) => {
+                    dragging = true;
+                    const rect = bubble.getBoundingClientRect();
+                    offsetX = clientX - rect.left;
+                    offsetY = clientY - rect.top;
+                };
+
+                const onMove = (clientX, clientY) => {
+                    if (!dragging) return;
+                    const parentRect = foodBubblesLayer.getBoundingClientRect();
+                    bubble.style.left = `${clientX - parentRect.left - offsetX}px`;
+                    bubble.style.top = `${clientY - parentRect.top - offsetY}px`;
+                };
+
+                const onUp = () => {
+                    if (!dragging) return;
+                    dragging = false;
+                    const bRect = bubble.getBoundingClientRect();
+                    const cRect = characterContainer.getBoundingClientRect();
+                    const overlap = !(
+                        bRect.right < cRect.left ||
+                        bRect.left > cRect.right ||
+                        bRect.bottom < cRect.top ||
+                        bRect.top > cRect.bottom
+                    );
+                    if (overlap && !isCharacterGone) {
+                        bubble.remove();
+                        feedCharacter(foodItem);
+                    }
+                };
+
+                bubble.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
+                window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+                window.addEventListener('mouseup', onUp);
+
+                bubble.addEventListener('touchstart', e => {
+                    const t = e.touches[0];
+                    onDown(t.clientX, t.clientY);
+                }, { passive: true });
+                window.addEventListener('touchmove', e => {
+                    if (!dragging) return;
+                    const t = e.touches[0];
+                    onMove(t.clientX, t.clientY);
+                }, { passive: true });
+                window.addEventListener('touchend', onUp);
+            }
+
+            function feedCharacter(foodItem) {
+                if (foodItem.id === 'veneno') {
+                    // Se pone rojo y enojado y se va de la pantalla
+                    isCharacterGone = true;
+                    trashLidTop.setAttribute('fill', '#ef4444');
+                    trashLidRim.setAttribute('fill', '#ef4444');
+                    trashBodyFill.setAttribute('fill', '#ef4444');
+                    angryBrows.classList.remove('hidden');
+                    mouth.setAttribute('d', 'M116 174Q130 160 144 174');
+                    showBubble('¡¿QUÉ ME DISTE?! ¡ME VOY!');
+
+                    setTimeout(() => {
+                        characterContainer.classList.remove('character-idle', 'character-tap');
+                        characterContainer.classList.add('character-walk-away');
+                        setTimeout(() => {
+                            characterContainer.classList.add('hidden');
+                            angrySignBtn.classList.remove('hidden');
+                            angrySignBtn.classList.add('flex');
+                        }, 1050);
+                    }, 450);
+                    return;
+                }
+
+                state.hunger = Math.min(100, state.hunger + foodItem.hungerGain);
+                saveGameProgress();
+                updateUI();
+                triggerCharacterReaction('¡Qué rico! ¡Gracias!');
+            }
+
+            // Al tocar el cartel vuelve el tachito
+            angrySignBtn.addEventListener('click', () => {
+                angrySignBtn.classList.add('hidden');
+                angrySignBtn.classList.remove('flex');
+                angryBrows.classList.add('hidden');
+                mouth.setAttribute('d', 'M123 166Q130 166 137 166');
+                isCharacterGone = false;
+                updateUI();
+
+                characterContainer.classList.remove('hidden', 'character-walk-away');
+                characterContainer.classList.add('character-walk-back');
+                setTimeout(() => {
+                    characterContainer.classList.remove('character-walk-back');
+                    characterContainer.classList.add('character-idle');
+                    showBubble('¡No lo vuelvas a hacer!');
+                }, 650);
+            });
+
+            // Disminución lenta de hambre (inmortal: nunca baja de 20)
+            setInterval(() => {
+                if (!isCharacterGone && state.hunger > 20) {
+                    state.hunger = Math.max(20, state.hunger - 1);
+                    updateUI();
+                }
+            }, 9000);
+
+            // Tienda abrir / cerrar y scrollbar
+            btnShop.addEventListener('click', () => {
+                shopView.classList.remove('hidden');
+                renderShop();
+            });
+            btnCloseShop.addEventListener('click', () => {
+                shopView.classList.add('hidden');
+            });
+
+            shopScrollArea.addEventListener('scroll', () => {
+                const maxScroll = shopScrollArea.scrollHeight - shopScrollArea.clientHeight;
+                if (maxScroll <= 0) return;
+                const ratio = shopScrollArea.scrollTop / maxScroll;
+                const maxThumb = shopScrollbarTrack.clientHeight - shopScrollbarThumb.clientHeight;
+                shopScrollbarThumb.style.top = `${ratio * maxThumb}px`;
+            });
+
+            // Cámara (2 fotos con análisis de IA -> +30 monedas)
+            let cameraStream = null;
+            let useFrontCamera = false;
+            let photoStep = 1;
+            let firstPhotoBase64 = null;
+            let firstPhotoMime = 'image/jpeg';
+            let detectedObjectDesc = '';
+
+            async function startCamera() {
+                cameraFallback.classList.add('hidden');
+                cameraFallback.classList.remove('flex');
+                try {
+                    if (cameraStream) {
+                        cameraStream.getTracks().forEach(t => t.stop());
+                        cameraStream = null;
+                    }
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new Error('Navegador sin soporte de cámara en vivo');
+                    }
+                    try {
+                        cameraStream = await navigator.mediaDevices.getUserMedia({
+                            video: {
+                                facingMode: useFrontCamera ? 'user' : { ideal: 'environment' },
+                                width: { ideal: 1280 },
+                                height: { ideal: 720 }
+                            },
+                            audio: false
+                        });
+                    } catch (primaryErr) {
+                        cameraStream = await navigator.mediaDevices.getUserMedia({
+                            video: true,
+                            audio: false
+                        });
+                    }
+                    cameraVideo.srcObject = cameraStream;
+                    cameraVideo.setAttribute('playsinline', 'true');
+                    await cameraVideo.play();
+                } catch (e) {
+                    if (cameraErrorDetail) {
+                        cameraErrorDetail.textContent = 'No se pudo acceder a la cámara del celular. Asegúrate de darle permiso al navegador y toca "Activar Cámara del Celular".';
+                    }
+                    cameraFallback.classList.remove('hidden');
+                    cameraFallback.classList.add('flex');
+                }
+            }
+
+            function stopCamera() {
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(t => t.stop());
+                    cameraStream = null;
+                }
+                cameraVideo.srcObject = null;
+            }
+
+            function resetPhotoFlow() {
+                photoStep = 1;
+                firstPhotoBase64 = null;
+                firstPhotoMime = 'image/jpeg';
+                detectedObjectDesc = '';
+                cameraStepBadge.textContent = 'Foto 1 de 2';
+                cameraInstructionTitle.textContent = 'Paso 1: Sácale foto a un objeto tirado';
+                const descEl = document.getElementById('camera-instruction-desc');
+                if (descEl) {
+                    descEl.textContent = 'Enfoca una basura u objeto tirado en el suelo o fuera del tacho.';
+                    descEl.classList.remove('text-red-600', 'font-bold');
+                    descEl.classList.add('text-gray-600');
+                }
+                thumb1Img.classList.add('hidden');
+                thumb1Placeholder.classList.remove('hidden');
+                thumb2Img.classList.add('hidden');
+                thumb2Placeholder.classList.remove('hidden');
+                btnResetPhotos.classList.add('hidden');
+            }
+
+            async function callGeminiVision(parts, responseSchema) {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ role: "user", parts }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema
+                    }
+                };
+
+                const delays = [1000, 2000, 4000];
+                for (let attempt = 0; attempt <= delays.length; attempt++) {
+                    try {
+                        const res = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const data = await res.json();
+                        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (!text) throw new Error('Empty AI response');
+                        return JSON.parse(text);
+                    } catch (err) {
+                        if (attempt === delays.length) throw err;
+                        await new Promise(r => setTimeout(r, delays[attempt]));
+                    }
+                }
+            }
+
+            function showCameraFeedback(message, isError = true) {
+                const descEl = document.getElementById('camera-instruction-desc');
+                if (!descEl) return;
+                descEl.textContent = message;
+                if (isError) {
+                    descEl.classList.remove('text-gray-600');
+                    descEl.classList.add('text-red-600', 'font-bold');
+                } else {
+                    descEl.classList.remove('text-red-600', 'font-bold');
+                    descEl.classList.add('text-gray-600');
+                }
+            }
+
+            async function processCapturedDataUrl(dataUrl) {
+                const mimeMatch = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
+                const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                const base64Data = dataUrl.split(',')[1];
+
+                cameraVerifyingOverlay.classList.remove('hidden');
+                cameraVerifyingOverlay.classList.add('flex');
+                if (cameraVerifyingText) {
+                    cameraVerifyingText.textContent = photoStep === 1
+                        ? 'IA verificando objeto tirado...'
+                        : 'IA comprobando el mismo objeto en el tacho...';
+                }
+
+                try {
+                    if (photoStep === 1) {
+                        const schema1 = {
+                            type: "OBJECT",
+                            properties: {
+                                valido: { type: "BOOLEAN" },
+                                objeto: { type: "STRING" },
+                                razon: { type: "STRING" }
+                            },
+                            required: ["valido", "objeto", "razon"]
+                        };
+                        const prompt1 = "Analiza esta imagen para una app de reciclaje. Determina si se muestra un objeto, residuo o basura tirada en el suelo, mesa o fuera de un tacho de basura (no debe estar ya dentro de un tacho). Responde en español: 'valido' (true si hay un objeto/basura fuera del tacho, false si no se ve ningún objeto o ya está en un tacho), 'objeto' (descripción breve y clara del objeto para reconocerlo después, ej: 'botella plástica transparente', 'papel arrugado blanco', 'lata de refresco'), y 'razon' (mensaje corto para el usuario).";
+
+                        const result = await callGeminiVision([
+                            { text: prompt1 },
+                            { inlineData: { mimeType, data: base64Data } }
+                        ], schema1);
+
+                        cameraVerifyingOverlay.classList.add('hidden');
+                        cameraVerifyingOverlay.classList.remove('flex');
+
+                        if (!result.valido) {
+                            showCameraFeedback(`⚠️ ${result.razon || 'No se detectó un objeto tirado fuera del tacho. Intenta de nuevo.'}`, true);
+                            return;
+                        }
+
+                        firstPhotoBase64 = base64Data;
+                        firstPhotoMime = mimeType;
+                        detectedObjectDesc = result.objeto || 'el objeto';
+
+                        thumb1Img.src = dataUrl;
+                        thumb1Img.classList.remove('hidden');
+                        thumb1Placeholder.classList.add('hidden');
+                        photoStep = 2;
+                        cameraStepBadge.textContent = 'Foto 2 de 2';
+                        cameraInstructionTitle.textContent = `Paso 2: Tira "${detectedObjectDesc}" al tacho`;
+                        showCameraFeedback(`✅ IA detectó: ${detectedObjectDesc}. Ahora sácale foto dentro de un tacho de basura.`, false);
+                        btnResetPhotos.classList.remove('hidden');
+                    } else {
+                        const schema2 = {
+                            type: "OBJECT",
+                            properties: {
+                                valido: { type: "BOOLEAN" },
+                                mismoObjeto: { type: "BOOLEAN" },
+                                enTacho: { type: "BOOLEAN" },
+                                razon: { type: "STRING" }
+                            },
+                            required: ["valido", "mismoObjeto", "enTacho", "razon"]
+                        };
+                        const prompt2 = `Compara estas dos imágenes para verificar reciclaje. En la Imagen 1 se vio: "${detectedObjectDesc}". Verifica en la Imagen 2 si: 1) Se ve un tacho o contenedor de basura ('enTacho'), y 2) Ese MISMO objeto ("${detectedObjectDesc}") está ahora dentro del tacho de basura ('mismoObjeto'). 'valido' es true SOLO si ambas condiciones se cumplen. Responde en español con 'razon' explicando brevemente qué faltó o felicitando.`;
+
+                        const result = await callGeminiVision([
+                            { text: prompt2 },
+                            { inlineData: { mimeType: firstPhotoMime, data: firstPhotoBase64 } },
+                            { inlineData: { mimeType, data: base64Data } }
+                        ], schema2);
+
+                        cameraVerifyingOverlay.classList.add('hidden');
+                        cameraVerifyingOverlay.classList.remove('flex');
+
+                        if (!result.valido || !result.mismoObjeto || !result.enTacho) {
+                            showCameraFeedback(`⚠️ ${result.razon || `Asegúrate de que "${detectedObjectDesc}" esté dentro de un tacho de basura.`}`, true);
+                            return;
+                        }
+
+                        thumb2Img.src = dataUrl;
+                        thumb2Img.classList.remove('hidden');
+                        thumb2Placeholder.classList.add('hidden');
+                        state.coins += 30;
+                        saveGameProgress();
+                        updateUI();
+
+                        setTimeout(() => {
+                            stopCamera();
+                            cameraView.classList.add('hidden');
+                            resetPhotoFlow();
+                            triggerCharacterReaction('¡IA verificó el reciclaje! +30 monedas');
+                        }, 600);
+                    }
+                } catch (err) {
+                    cameraVerifyingOverlay.classList.add('hidden');
+                    cameraVerifyingOverlay.classList.remove('flex');
+                    showCameraFeedback('⚠️ Error al conectar con la IA de visión. Intenta sacar la foto nuevamente.', true);
+                }
+            }
+
+            btnCamera.addEventListener('click', () => {
+                resetPhotoFlow();
+                cameraView.classList.remove('hidden');
+                startCamera();
+            });
+
+            btnCloseCamera.addEventListener('click', () => {
+                stopCamera();
+                cameraView.classList.add('hidden');
+            });
+
+            btnSwitchCamera.addEventListener('click', () => {
+                useFrontCamera = !useFrontCamera;
+                startCamera();
+            });
+
+            btnRetryCamera.addEventListener('click', startCamera);
+            btnResetPhotos.addEventListener('click', resetPhotoFlow);
+
+            btnCapturePhoto.addEventListener('click', () => {
+                if (!cameraStream || cameraVideo.readyState < 2 || cameraVideo.videoWidth === 0) {
+                    showCameraFeedback('⚠️ Primero activa la cámara en vivo para poder tomar la foto.', true);
+                    startCamera();
+                    return;
+                }
+                cameraCanvas.width = cameraVideo.videoWidth;
+                cameraCanvas.height = cameraVideo.videoHeight;
+                const ctx = cameraCanvas.getContext('2d');
+                ctx.drawImage(cameraVideo, 0, 0);
+                processCapturedDataUrl(cameraCanvas.toDataURL('image/jpeg', 0.85));
+            });
+
+            // Seguimiento de pupilas con mouse / toque
+            window.addEventListener('pointermove', e => {
+                const dx = Math.max(-4, Math.min(4, (e.clientX / window.innerWidth - 0.5) * 10));
+                const dy = Math.max(-4, Math.min(4, (e.clientY / window.innerHeight - 0.5) * 10));
+                pupilLeft.setAttribute('cx', 102 + dx);
+                pupilLeft.setAttribute('cy', 128 + dy);
+                pupilRight.setAttribute('cx', 158 + dx);
+                pupilRight.setAttribute('cy', 128 + dy);
+                shopPupilLeft.setAttribute('cx', 19 + dx * 0.6);
+                shopPupilLeft.setAttribute('cy', 19 + dy * 0.6);
+                shopPupilRight.setAttribute('cx', 63 + dx * 0.6);
+                shopPupilRight.setAttribute('cy', 19 + dy * 0.6);
+            });
+
+            // Atajo discreto en PC
+            window.addEventListener('keydown', e => {
+                const isDesktop = !('ontouchstart' in window) && navigator.maxTouchPoints === 0;
+                if (isDesktop && (e.key === 'n' || e.key === 'N')) {
+                    state.coins = 999999999;
+                    saveGameProgress();
+                    updateUI();
+                }
+            });
+
+            initCloudStorage();
+        });
+    </script>
+</body>
+</html>
